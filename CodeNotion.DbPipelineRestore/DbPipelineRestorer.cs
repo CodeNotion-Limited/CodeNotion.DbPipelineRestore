@@ -25,7 +25,7 @@ public class DbPipelineRestorer(IDbDeleteStrategy dbDeleteStrategy, ILogger<DbPi
 
         var ds = new DacServices(sourceDb.ConnectionString);
 
-        logger.LogInformation("Exporting bacpac from {sourceDatabaseName} to {targetDatabaseName}", sourceDatabaseName, targetDatabaseName);
+        logger.LogInformation("Exporting bacpac from {sourceDatabaseName}", sourceDatabaseName);
         ds.ExportBacpac("./backup.bacpac", sourceDatabaseName);
         logger.LogInformation("Exported bacpac completed");
 
@@ -34,7 +34,7 @@ public class DbPipelineRestorer(IDbDeleteStrategy dbDeleteStrategy, ILogger<DbPi
         await dbDeleteStrategy.CycleDelete(targetDb.ConnectionString, targetDatabaseName);
         logger.LogInformation("Delete completed");
         logger.LogInformation("Importing bacpac to {targetDatabaseName}", targetDatabaseName);
-        ds.ImportBacpac(package, "DrSafety2");
+        ds.ImportBacpac(package, targetDatabaseName);
         
         logger.LogInformation("Import completed");
     }
