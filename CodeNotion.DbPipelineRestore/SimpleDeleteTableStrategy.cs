@@ -1,16 +1,21 @@
 ﻿using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
 using Microsoft.SqlServer.Management.Smo;
 
 namespace CodeNotion.DbPipelineRestore;
 
 public interface IDbDeleteStrategy
 {
+    Task CycleDelete(string connectionString, string dbName);
 }
 
-public class SimpleDeleteTableStrategy : IDbDeleteStrategy
+public class SimpleDeleteTableStrategy(ILogger<SimpleDeleteTableStrategy> logger) : IDbDeleteStrategy
 {
     public virtual async Task CycleDelete(string connectionString, string dbName)
     {
+        logger.LogInformation("Deleting tables in {dbName}", dbName);
+        var connection = new SqlConnection(connectionString);
+        connection.Open();
         var server = new Server(dbName)
         {
             ConnectionContext =
@@ -18,13 +23,14 @@ public class SimpleDeleteTableStrategy : IDbDeleteStrategy
                 ConnectionString = connectionString
             }
         };
-        var connection = new SqlConnection(connectionString);
-        connection.Open();
         var database = server.Databases[dbName];
-        var tables = database.Tables;
 
         for (var i = 0; i < 10; i++)
         {
+            database.Tables.Refresh();
+            var tables = database.Tables;
+
+            logger.LogInformation("Deletion cycle {i} of 10, remaining tables: {tables.Count}", i, tables.Count);
             foreach (Table t in tables)
             {
                 try

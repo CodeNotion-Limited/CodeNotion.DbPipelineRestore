@@ -1,9 +1,10 @@
 ﻿using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
 using Microsoft.SqlServer.Dac;
 
 namespace CodeNotion.DbPipelineRestore;
 
-public class DbPipelineRestorer
+public class DbPipelineRestorer(IDbDeleteStrategy dbDeleteStrategy, ILogger<DbPipelineRestorer> logger)
 {
     public virtual async Task Restore(
         string sourceConnectionString,
@@ -22,18 +23,19 @@ public class DbPipelineRestorer
             ConnectionString = targetConnectionString
         };
 
-        // Initialize DacServices
         var ds = new DacServices(sourceDb.ConnectionString);
 
-        // Export the database to a .bacpac file
-        ds.ExportBacpac(@"./backup.bacpac", sourceDatabaseName);
+        logger.LogInformation("Exporting bacpac from {sourceDatabaseName} to {targetDatabaseName}", sourceDatabaseName, targetDatabaseName);
+        ds.ExportBacpac("./backup.bacpac", sourceDatabaseName);
+        logger.LogInformation("Exported bacpac completed");
 
-        // Import the .bacpac file to the target database
-        var package = BacPackage.Load(@"./backup.bacpac");
+        var package = BacPackage.Load("./backup.bacpac");
 
-        var service = new SimpleDeleteTableStrategy();
-        await service.CycleDelete(targetDb.ConnectionString, targetDatabaseName);
-
+        await dbDeleteStrategy.CycleDelete(targetDb.ConnectionString, targetDatabaseName);
+        logger.LogInformation("Delete completed");
+        logger.LogInformation("Importing bacpac to {targetDatabaseName}", targetDatabaseName);
         ds.ImportBacpac(package, "DrSafety2");
+        
+        logger.LogInformation("Import completed");
     }
 }
